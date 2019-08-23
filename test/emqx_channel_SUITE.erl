@@ -166,10 +166,9 @@ t_handle_deliver(_) ->
               Msg0 = emqx_message:make(<<"clientx">>, ?QOS_0, <<"t0">>, <<"qos0">>),
               Msg1 = emqx_message:make(<<"clientx">>, ?QOS_1, <<"t1">>, <<"qos1">>),
               Delivers = [{deliver, <<"+">>, Msg0}, {deliver, <<"+">>, Msg1}],
-              {ok, Packets, _Ch} = emqx_channel:handle_out({deliver, Delivers}, Channel1),
-              ?assertMatch([?PUBLISH_PACKET(?QOS_0, <<"t0">>, undefined, <<"qos0">>),
-                            ?PUBLISH_PACKET(?QOS_1, <<"t1">>, 1, <<"qos1">>)
-                           ], Packets)
+              {ok, Channel2} = emqx_channel:handle_out({deliver, Delivers}, Channel1),
+              Session = emqx_channel:info(session, Channel2),
+              ?assertEqual(2, maps:get(mqueue_len, Session))
       end).
 
 %%--------------------------------------------------------------------
@@ -179,7 +178,7 @@ t_handle_deliver(_) ->
 t_handle_connack(_) ->
     with_channel(
       fun(Channel) ->
-              {ok, ?CONNACK_PACKET(?RC_SUCCESS, SP, _), _}
+              {ok, ?CONNACK_PACKET(?RC_SUCCESS, _SP, _), _}
                 = handle_out({connack, ?RC_SUCCESS, 0}, Channel),
               {stop, {shutdown, unauthorized_client}, ?CONNACK_PACKET(5), _}
                 = handle_out({connack, ?RC_NOT_AUTHORIZED}, Channel)
@@ -295,4 +294,3 @@ with_channel(Fun) ->
                                  }),
     Fun(emqx_channel:set(protocol, Protocol,
                          emqx_channel:set(session, Session, Channel))).
-
